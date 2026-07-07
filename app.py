@@ -126,24 +126,25 @@ def cut():
             return f"Download error: {e}", 500
 
         # Get the actual file path from info_dict
-        output_path = os.path.join(tmpdir, f"{info['title']}.{info['ext']}")
-        print(output_path)
+        filename = f"{info['title']}.{info['ext']}"
+        #output_path = os.path.join(tmpdir, filename)
+        print(filename)
         #output_path = info.get("_filename")
-        if not output_path or not os.path.isfile(output_path):
+        if not filename or not os.path.isfile(filename):
             return "Downloaded file not found.", 500
 
         # Use the final file name for download_name (nice for the user)
-        download_name = os.path.basename(output_path)
-        #duration = end_sec - start_sec
+        download_name = os.path.basename(filename)
+        output_path = os.path.join(tmpdir,("cut"+download_name))
         
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",
             "-ss", str(start_sec),
-            "-i", download_name,
+            "-i", input_path,
             "-to", str(end_sec),
             "-c", "copy",
-            ("cut"+download_name),
+            output_path,
         ]
 
         try:
