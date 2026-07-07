@@ -46,6 +46,7 @@ INDEX_HTML = """
     <input type="text"
            name="start"
            placeholder="00:00:00"
+           value="00:00:00"
            pattern="^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$"
            required>
 
@@ -53,6 +54,7 @@ INDEX_HTML = """
     <input type="text"
            name="end"
            placeholder="00:01:30"
+           value="00:00:01"
            pattern="^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$"
            required>
     
