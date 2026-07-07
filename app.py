@@ -64,7 +64,7 @@ def cut():
     url = request.form.get("url", "").strip()
     start = request.form.get("start", "0").strip()
     end = request.form.get("end", "0").strip()
-    resolution = request.form.get("resolution", 480).strip()
+    resolution = request.form.get("resolution", "original").strip()
 
     if not url:
         return "Missing URL", 400
@@ -72,6 +72,7 @@ def cut():
     try:
         start_sec = float(start)
         end_sec = float(end)
+        resolution = int(resolution)
         if end_sec <= start_sec:
             return "End time must be greater than start time.", 400
     except ValueError:
@@ -83,7 +84,7 @@ def cut():
         ydl_opts = {
             #"format": f'bestvideo[height={resolution}]+bestaudio/best',
             #"format": f"[height<={resolution}]/[height<=720]",
-            "format": f"[height=480]",
+            "format": f"[height={resolution}]",
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
             "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
@@ -95,10 +96,17 @@ def cut():
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-                #info = ydl.extract_info(url, download = True)
+                info = ydl.extract_info(url, download=True)
         except Exception as e:
             return f"Download error: {e}", 500
+
+        # Get the actual file path from info_dict
+        output_path = info.get("_filename")
+        if not output_path or not os.path.isfile(output_path):
+            return "Downloaded file not found.", 500
+
+        # Use the final file name for download_name (nice for the user)
+        download_name = os.path.basename(output_path)
 
         output_path = os.path.join(tmpdir, filename)
         duration = end_sec - start_sec
@@ -121,7 +129,7 @@ def cut():
         return send_file(
             output_path,
             as_attachment=True,
-            download_name=filename,
+            download_name=download_name,
             mimetype="video/mp4",
         )
 
