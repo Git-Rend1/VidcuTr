@@ -141,7 +141,7 @@ def cut():
             "-y",
             "-ss", str(start_sec),
             "-i", download_name,
-            "-to", str(start_sec),
+            "-to", str(end_sec),
             "-c", "copy",
             ("cut"+download_name),
         ]
