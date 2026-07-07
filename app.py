@@ -1,0 +1,105 @@
+import os
+import subprocess
+import tempfile
+from flask import Flask, request, send_file, render_template_string
+from yt_dlp import YoutubeDL
+
+app = Flask(__name__)
+
+INDEX_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Video Cutter</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+    label { display: block; margin-top: 10px; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 8px; }
+    button { margin-top: 20px; padding: 10px 16px; }
+    .note { font-size: 0.9em; color: #555; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Online Video Cutter</h1>
+  <form method="POST" action="/cut">
+    <label>Video URL</label>
+    <input type="text" name="url" placeholder="Paste video link" required>
+
+    <label>Start time (seconds)</label>
+    <input type="number" name="start" min="0" value="0" required>
+
+    <label>End time (seconds)</label>
+    <input type="number" name="end" min="1" value="30" required>
+
+    <button type="submit">Cut & Download</button>
+    <p class="note">
+      Only use URLs you have permission to download and edit.
+    </p>
+  </form>
+</body>
+</html>
+"""
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_template_string(INDEX_HTML)
+
+@app.route("/cut", methods=["POST"])
+def cut():
+    url = request.form.get("url", "").strip()
+    start = request.form.get("start", "0").strip()
+    end = request.form.get("end", "0").strip()
+
+    if not url:
+        return "Missing URL", 400
+
+    try:
+        start_sec = float(start)
+        end_sec = float(end)
+        if end_sec <= start_sec:
+            return "End time must be greater than start time.", 400
+    except ValueError:
+        return "Invalid time values.", 400
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, "input.mp4")
+        ydl_opts = {
+            "outtmpl": input_path,
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
+        }
+
+        try:
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        except Exception as e:
+            return f"Download error: {e}", 500
+
+        output_path = os.path.join(tmpdir, "clip.mp4")
+        duration = end_sec - start_sec
+
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start_sec),
+            "-i", input_path,
+            "-t", str(duration),
+            "-c", "copy",
+            output_path,
+        ]
+
+        try:
+            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            return f"FFmpeg error: {e}", 500
+
+        return send_file(
+            output_path,
+            as_attachment=True,
+            download_name="clip.mp4",
+            mimetype="video/mp4",
+        )
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
