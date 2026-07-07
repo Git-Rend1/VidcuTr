@@ -77,13 +77,14 @@ def cut():
         return "Invalid time values.", 400
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = os.path.join(tmpdir, "%(title)s.%(ext)s")
+        filename = "%(title)s.%(ext)s"
+        input_path = os.path.join(tmpdir, filename)
         ydl_opts = {
             "format": f'bestvideo[height={resolution}]+bestaudio/best',
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
-            # "download_ranges": download_range_func(None, [(420, 1080)]),  #Seconds
-            # "force_keyframes_at_cuts": True,
+            "download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
+            "force_keyframes_at_cuts": True,
             #"format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
         }
 
@@ -94,28 +95,28 @@ def cut():
         except Exception as e:
             return f"Download error: {e}", 500
 
-        output_path = os.path.join(tmpdir, "%(title)s.%(ext)s")
+        output_path = os.path.join(tmpdir, filename)
         duration = end_sec - start_sec
 
-        ffmpeg_cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss", str(start_sec),
-            "-i", input_path,
-            "-t", str(duration),
-            "-c", "copy",
-            output_path,
-        ]
+        # ffmpeg_cmd = [
+            # "ffmpeg",
+            # "-y",
+            # "-ss", str(start_sec),
+            # "-i", input_path,
+            # "-t", str(duration),
+            # "-c", "copy",
+            # output_path,
+        # ]
 
-        try:
-            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as e:
-            return f"FFmpeg error: {e}", 500
+        # try:
+            # subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # except subprocess.CalledProcessError as e:
+            # return f"FFmpeg error: {e}", 500
 
         return send_file(
             output_path,
             as_attachment=True,
-            download_name="%(title)s.%(ext)s",
+            download_name=filename,
             mimetype="video/mp4",
         )
 
