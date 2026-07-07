@@ -83,7 +83,8 @@ def cut():
             "format": f'bestvideo[height={resolution}]+bestaudio/best',
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
-            "download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
+            "download_ranges": yt_dlp.utils.download_range_func([], [[start_sec, end_sec]])
+            #"download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
             "force_keyframes_at_cuts": True,
             #"format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
         }
