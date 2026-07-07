@@ -65,7 +65,7 @@ def cut():
     url = request.form.get("url", "").strip()
     start = request.form.get("start", "0").strip()
     end = request.form.get("end", "0").strip()
-    resolution = request.form.get("resolution", 480).strip()
+    resolution = request.form.get("resolution", "original").strip()
 
     if not url:
         return "Missing URL", 400
@@ -73,7 +73,7 @@ def cut():
     try:
         start_sec = float(start)
         end_sec = float(end)
-        #resolution = int(resolution)
+        resolution = int(resolution)
         if end_sec <= start_sec:
             return "End time must be greater than start time.", 400
     except ValueError:
