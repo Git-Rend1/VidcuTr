@@ -77,7 +77,8 @@ def cut():
         return "Invalid time values.", 400
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        with YoutubeDL(ydl_options) as ydl:
+        ydl_opts = {}
+        with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
         
         formats = info.get("formats", [])
