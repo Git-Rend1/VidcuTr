@@ -36,11 +36,11 @@ INDEX_HTML = """
     
     <label>Video resolution (advanced)</label>
     <select name="resolution">
-      <option value="original" selected>Original resolution</option>
-      <option value="360p">360p (640x360)</option>
-      <option value="480p">480p (854x480)</option>
-      <option value="720p">720p (1280x720)</option>
-      <option value="1080p">1080p (1920x1080)</option>
+      <option value=480 selected>Original resolution</option>
+      <option value=360>360p (640x360)</option>
+      <option value=480>480p (854x480)</option>
+      <option value=720>720p (1280x720)</option>
+      <option value=1080>1080p (1920x1080)</option>
     </select>
     
     <p class="note">
