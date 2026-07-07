@@ -41,6 +41,10 @@ INDEX_HTML = """
       <option value="1080p">1080p (1920x1080)</option>
     </select>
     
+    <p class="note">
+      -----------------------------------------------------------
+    </p>   
+    
     <button type="submit">Cut & Download</button>
     <p class="note">
       Only use URLs you have permission to download and edit.
@@ -73,9 +77,30 @@ def cut():
         return "Invalid time values.", 400
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        with YoutubeDL(ydl_options) as ydl:
+            info = ydl.extract_info(url, download=False)
+        
+        formats = info.get("formats", [])
+        standard_heights = [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144]
+
+        available_heights = set()
+
+        for f in formats:
+            h = f.get("resolution")
+            vcodec = f.get("vcodec", "none")
+
+            if h and vcodec and vcodec != "none":
+                available_heights.add(int(h))
+
+        qualities = ["best"]
+
+        for h in standard_heights:
+            if h in available_heights:
+                qualities.append(str(h))
+
         input_path = os.path.join(tmpdir, "%(title)s.%(ext)s")
         ydl_opts = {
-            "format": resolution,               # choice of quality
+            "format": qualities,               # choice of quality
             "outtmpl": input_path,
             # "download_ranges": download_range_func(None, [(420, 1080)]),  #Seconds
             # "force_keyframes_at_cuts": True,
