@@ -127,10 +127,10 @@ def cut():
 
         # Get the actual file path from info_dict
         filename = f"{info['title']}.{info['ext']}"
-        #output_path = os.path.join(tmpdir, filename)
-        print("DL File Name: "+filename)
+        orgFile_path = os.path.join(tmpdir, filename)
+        print("DL File Path: "+orgFile_path)
         #output_path = info.get("_filename")
-        if not filename or not os.path.isfile(filename):
+        if not orgFile_path or not os.path.isfile(filename):
             return "Downloaded file not found.", 500
 
         # Use the final file name for download_name (nice for the user)
