@@ -8,10 +8,6 @@ from yt_dlp.utils import download_range_func
 
 app = Flask(__name__)
 
-DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "downloads")
-os.makedirs(DOWNLOADS_DIR, exist_ok=True)
-
-
 # ------------ Helpers ------------
 
 def parse_hhmmss(time_str: str) -> float:
@@ -76,19 +72,8 @@ INDEX_HTML = """
     </p>   
     
     <button type="submit">Cut & Download</button>
- 
     <p class="note">
-      <a href="/downloads">View saved downloads</a>
-    </p>
- 
-    <form method="POST" action="/clear-downloads" style="margin-top:20px;">
-      <button type="submit" style="background:#c62828;color:#fff;">
-        Clear Downloads Folder
-      </button>
-    </form>    
-    
-    <p class="note">
-      Xhamster,Xvideo,Xnxx,Pornhub.
+      Only use URLs you have permission to download and edit.
     </p>
   </form>
 </body>
@@ -150,7 +135,7 @@ def cut():
 
         # Use the final file name for download_name (nice for the user)
         download_name = os.path.basename(filename)
-        output_path = os.path.join(DOWNLOADS_DIR,("cut"+download_name))
+        output_path = os.path.join(tmpdir,("cut"+download_name))
         
         ffmpeg_cmd = [
             "ffmpeg",
@@ -167,9 +152,6 @@ def cut():
         except subprocess.CalledProcessError as e:
             return f"FFmpeg error: {e}", 500
 
-        saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
-        os.replace(orgFile_path, saved_original_path)
-
         return send_file(
             output_path,
             as_attachment=True,
@@ -177,21 +159,6 @@ def cut():
             mimetype="video/mp4",
         )
 
-@app.route("/clear-downloads", methods=["POST"])
-def clear_downloads():
-    try:
-        for name in os.listdir(DOWNLOADS_DIR):
-            path = os.path.join(DOWNLOADS_DIR, name)
-            if os.path.isfile(path) or os.path.islink(path):
-                os.unlink(path)
-            elif os.path.isdir(path):
-                # If you ever create subfolders, remove them too
-                import shutil
-                shutil.rmtree(path)
-        return "Downloads folder cleared.", 200
-    except Exception as e:
-        return f"Error clearing downloads: {e}", 500
-        
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
