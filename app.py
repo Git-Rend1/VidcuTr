@@ -130,8 +130,8 @@ def cut():
         orgFile_path = os.path.join(tmpdir, filename)
         print("DL File Path: "+orgFile_path)
         #output_path = info.get("_filename")
-        if not orgFile_path or not os.path.isfile(filename):
-            return "Downloaded file not found.", 500
+        #if not orgFile_path or not os.path.isfile(filename):
+            #return "Downloaded file not found.", 500
 
         # Use the final file name for download_name (nice for the user)
         download_name = os.path.basename(filename)
@@ -141,7 +141,7 @@ def cut():
             "ffmpeg",
             "-y",
             "-ss", str(start_sec),
-            "-i", input_path,
+            "-i", orgFile_path,
             "-to", str(end_sec),
             "-c", "copy",
             output_path,
