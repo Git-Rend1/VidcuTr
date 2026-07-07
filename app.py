@@ -101,7 +101,8 @@ def cut():
             return f"Download error: {e}", 500
 
         # Get the actual file path from info_dict
-        output_path = f"{info['title']}.{info['ext']}"
+        output_path = os.path.join(tmpdir, f"{info['title']}.{info['ext']}")
+        print(output_path)
         #output_path = info.get("_filename")
         if not output_path or not os.path.isfile(output_path):
             return "Downloaded file not found.", 500
