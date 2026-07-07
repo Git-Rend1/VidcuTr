@@ -64,16 +64,16 @@ INDEX_HTML = """
 </html>
 """
 
-def parse_hhmmss(time_str: str) -> float:
-    """Convert 'HH:MM:SS' (or 'H:MM:SS') to seconds."""
-    try:
-        parts = time_str.strip().split(":")
-        if len(parts) != 3:
-            raise ValueError("Time must be in HH:MM:SS format")
-        h, m, s = parts
-        return int(h) * 3600 + int(m) * 60 + int(s)
-    except Exception as e:
-        raise ValueError(f"Invalid time value '{time_str}': {e}")
+# def parse_hhmmss(time_str: str) -> float:
+    # """Convert 'HH:MM:SS' (or 'H:MM:SS') to seconds."""
+    # try:
+        # parts = time_str.strip().split(":")
+        # if len(parts) != 3:
+            # raise ValueError("Time must be in HH:MM:SS format")
+        # h, m, s = parts
+        # return int(h) * 3600 + int(m) * 60 + int(s)
+    # except Exception as e:
+        # raise ValueError(f"Invalid time value '{time_str}': {e}")
 
 @app.route("/", methods=["GET"])
 def index():
@@ -89,20 +89,20 @@ def cut():
     if not url:
         return "Missing URL", 400
 
-    try:
-        start_str = request.form.get("start", "").strip()
-        end_str = request.form.get("end", "").strip()
+    # try:
+        # start_str = request.form.get("start", "").strip()
+        # end_str = request.form.get("end", "").strip()
 
-        if not start_str or not end_str:
-            return "Missing start or end time.", 400
+        # if not start_str or not end_str:
+            # return "Missing start or end time.", 400
 
-        try:
-            start_sec = parse_hhmmss(start_str)
-            end_sec = parse_hhmmss(end_str)
-            if end_sec <= start_sec:
-                return "End time must be greater than start time.", 400
-        except ValueError as e:
-            return str(e), 400
+        # try:
+            # start_sec = parse_hhmmss(start_str)
+            # end_sec = parse_hhmmss(end_str)
+            # if end_sec <= start_sec:
+                # return "End time must be greater than start time.", 400
+        # except ValueError as e:
+            # return str(e), 400
             
         resolution_int = int(resolution)
         
