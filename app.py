@@ -134,16 +134,16 @@ def cut():
 
         # Use the final file name for download_name (nice for the user)
         download_name = os.path.basename(output_path)
-        duration = end_sec - start_sec
+        #duration = end_sec - start_sec
         
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",
             "-ss", str(start_sec),
             "-i", download_name,
-            "-t", str(duration),
+            "-to", str(start_sec),
             "-c", "copy",
-            (download_name+"cut"),
+            ("cut"+download_name),
         ]
 
         try:
@@ -154,7 +154,7 @@ def cut():
         return send_file(
             output_path,
             as_attachment=True,
-            download_name=(download_name+"cut"),
+            download_name=("cut"+download_name),
             mimetype="video/mp4",
         )
 
