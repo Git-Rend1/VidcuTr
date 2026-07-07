@@ -1,10 +1,8 @@
 import os
 import subprocess
 import tempfile
-import yt_dlp
 from flask import Flask, request, send_file, render_template_string
 from yt_dlp import YoutubeDL
-#from yt_dlp.utils import download_range_func
 
 app = Flask(__name__)
 
@@ -33,20 +31,7 @@ INDEX_HTML = """
 
     <label>End time (seconds)</label>
     <input type="number" name="end" min="1" value="30" required>
-    
-    <label>Video resolution (advanced)</label>
-    <select name="resolution">
-      <option value="original" selected>Original resolution</option>
-      <option value="360p">360p (640x360)</option>
-      <option value="480p">480p (854x480)</option>
-      <option value="720p">720p (1280x720)</option>
-      <option value="1080p">1080p (1920x1080)</option>
-    </select>
-    
-    <p class="note">
-      -----------------------------------------------------------
-    </p>   
-    
+
     <button type="submit">Cut & Download</button>
     <p class="note">
       Only use URLs you have permission to download and edit.
@@ -65,7 +50,6 @@ def cut():
     url = request.form.get("url", "").strip()
     start = request.form.get("start", "0").strip()
     end = request.form.get("end", "0").strip()
-    resolution = request.form.get("resolution", "original").strip()
 
     if not url:
         return "Missing URL", 400
@@ -73,64 +57,46 @@ def cut():
     try:
         start_sec = float(start)
         end_sec = float(end)
-        resolution = int(resolution)
         if end_sec <= start_sec:
             return "End time must be greater than start time.", 400
     except ValueError:
         return "Invalid time values.", 400
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        filename = "%(title)s.%(ext)s"
-        input_path = os.path.join(tmpdir, filename)
+        input_path = os.path.join(tmpdir, "input.mp4")
         ydl_opts = {
-            #"format": f'bestvideo[height={resolution}]+bestaudio/best',
-            #"format": f"[height<={resolution}]/[height<=720]",
-            "format": f"[height=480]",
-            "merge_output_format": 'mp4',
             "outtmpl": input_path,
-            "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
-            #"download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
-            "force_keyframes_at_cuts": True,
-            #"format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
-            #'listformats': True,
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
         }
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
+                ydl.download([url])
         except Exception as e:
             return f"Download error: {e}", 500
 
-        # Get the actual file path from info_dict
-        output_path = info.get("_filename")
-        if not output_path or not os.path.isfile(output_path):
-            return "Downloaded file not found.", 500
-
-        # Use the final file name for download_name (nice for the user)
-        download_name = os.path.basename(output_path)
-
-        output_path = os.path.join(tmpdir, filename)
+        output_path = os.path.join(tmpdir, "clip.mp4")
         duration = end_sec - start_sec
 
-        # ffmpeg_cmd = [
-            # "ffmpeg",
-            # "-y",
-            # "-ss", str(start_sec),
-            # "-i", input_path,
-            # "-t", str(duration),
-            # "-c", "copy",
-            # output_path,
-        # ]
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start_sec),
+            "-i", input_path,
+            "-t", str(duration),
+            "-c", "copy",
+            output_path,
+        ]
 
-        # try:
-            # subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # except subprocess.CalledProcessError as e:
-            # return f"FFmpeg error: {e}", 500
+        try:
+            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            return f"FFmpeg error: {e}", 500
 
         return send_file(
             output_path,
             as_attachment=True,
-            download_name=download_name,
+            download_name="clip.mp4",
             mimetype="video/mp4",
         )
 
