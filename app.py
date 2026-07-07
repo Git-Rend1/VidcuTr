@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+import yt_dlp
 from flask import Flask, request, send_file, render_template_string
 from yt_dlp import YoutubeDL
 
@@ -63,7 +64,7 @@ def cut():
     url = request.form.get("url", "").strip()
     start = request.form.get("start", "0").strip()
     end = request.form.get("end", "0").strip()
-    resolution = request.form.get("resolution", "original").strip()
+    resolution = request.form.get("resolution", 480).strip()
 
     if not url:
         return "Missing URL", 400
@@ -80,13 +81,16 @@ def cut():
         filename = "%(title)s.%(ext)s"
         input_path = os.path.join(tmpdir, filename)
         ydl_opts = {
-            "format": f'bestvideo[height={resolution}]+bestaudio/best',
+            #"format": f'bestvideo[height={resolution}]+bestaudio/best',
+            #"format": f"[height<={resolution}]/[height<=720]",
+            "format": f"[height={resolution}]",
             "merge_output_format": 'mp4',
-            "outtmpl": input_path,
-            "download_ranges": ydl.utils.download_range_func([], [[start_sec, end_sec]]),
+            "outtmpl": (SAVE_PATH + filename),
+            "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
             #"download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
             "force_keyframes_at_cuts": True,
             #"format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
+            #'listformats': True,
         }
 
         try:
