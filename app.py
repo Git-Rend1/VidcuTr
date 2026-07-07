@@ -77,31 +77,10 @@ def cut():
         return "Invalid time values.", 400
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        ydl_opts = {}
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-        
-        formats = info.get("formats", [])
-        standard_heights = [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144]
-
-        available_heights = set()
-
-        for f in formats:
-            h = f.get("resolution")
-            vcodec = f.get("vcodec", "none")
-
-            if h and vcodec and vcodec != "none":
-                available_heights.add(int(h))
-
-        qualities = ["best"]
-
-        for h in standard_heights:
-            if h in available_heights:
-                qualities.append(str(h))
-
         input_path = os.path.join(tmpdir, "%(title)s.%(ext)s")
         ydl_opts = {
-            "format": qualities,               # choice of quality
+            "format": f'bestvideo[height={resolution}]+bestaudio/best',
+            "merge_output_format": 'mp4',
             "outtmpl": input_path,
             # "download_ranges": download_range_func(None, [(420, 1080)]),  #Seconds
             # "force_keyframes_at_cuts": True,
