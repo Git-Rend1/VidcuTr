@@ -170,6 +170,7 @@ def cut():
         saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
         os.replace(orgFile_path, saved_original_path)
         print("Org file Moved to Path: "+saved_original_path)
+        return "OK"
         # return send_file(
             # output_path,
             # as_attachment=True,
