@@ -85,7 +85,7 @@ def cut():
             #"format": f"[height<={resolution}]/[height<=720]",
             "format": f"[height={resolution}]",
             "merge_output_format": 'mp4',
-            "outtmpl": (SAVE_PATH + filename),
+            "outtmpl": input_path,
             "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
             #"download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
             "force_keyframes_at_cuts": True,
