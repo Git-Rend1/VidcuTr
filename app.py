@@ -114,10 +114,8 @@ def cut():
             "format": f"[height={resolution}]",
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
-            "download_ranges": yt_dlp.utils.download_range_func([], [[start_sec, end_sec]]),
-            #"download_ranges": download_range_func(None, [(start_sec, end_sec)]),  #Seconds
-            "force_keyframes_at_cuts": True,
-            #"format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
+            #"download_ranges": yt_dlp.utils.download_range_func([], [[start_sec, end_sec]]),
+            #"force_keyframes_at_cuts": True,
             #'listformats': True,
         }
 
@@ -136,26 +134,27 @@ def cut():
 
         # Use the final file name for download_name (nice for the user)
         download_name = os.path.basename(output_path)
+        duration = end_sec - start_sec
+        
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start_sec),
+            "-i", download_name,
+            "-t", str(duration),
+            "-c", "copy",
+            (download_name+"cut"),
+        ]
 
-        # ffmpeg_cmd = [
-            # "ffmpeg",
-            # "-y",
-            # "-ss", str(start_sec),
-            # "-i", input_path,
-            # "-t", str(duration),
-            # "-c", "copy",
-            # output_path,
-        # ]
-
-        # try:
-            # subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # except subprocess.CalledProcessError as e:
-            # return f"FFmpeg error: {e}", 500
+        try:
+            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            return f"FFmpeg error: {e}", 500
 
         return send_file(
             output_path,
             as_attachment=True,
-            download_name=download_name,
+            download_name=(download_name+"cut"),
             mimetype="video/mp4",
         )
 
