@@ -85,8 +85,8 @@ def index():
 @app.route("/cut", methods=["POST"])
 def cut():
     url = request.form.get("url", "").strip()
-    start = request.form.get("start", "").strip()
-    end = request.form.get("end", "").strip()
+    start_str = request.form.get("start", "").strip()
+    end_str = request.form.get("end", "").strip()
     resolution = request.form.get("resolution", "0").strip()
 
     if not url:
