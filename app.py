@@ -73,7 +73,7 @@ def cut():
     try:
         start_sec = float(start)
         end_sec = float(end)
-        resolution = int(resolution)
+        resolution_int = int(resolution)
         if end_sec <= start_sec:
             return "End time must be greater than start time.", 400
     except ValueError:
@@ -84,7 +84,7 @@ def cut():
         ydl_opts = {
             #"format": f'bestvideo[height={resolution}]+bestaudio/best',
             #"format": f"[height<={resolution}]/[height<=720]",
-            "format": f"[height=resolution]",
+            "format": f"[height={resolution_int}]",
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
             "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
