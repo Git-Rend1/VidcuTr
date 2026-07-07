@@ -4,7 +4,7 @@ import tempfile
 import yt_dlp
 from flask import Flask, request, send_file, render_template_string
 from yt_dlp import YoutubeDL
-from yt_dlp.utils import download_range_func
+#from yt_dlp.utils import download_range_func
 
 app = Flask(__name__)
 
@@ -85,7 +85,7 @@ def cut():
         ydl_opts = {
             #"format": f'bestvideo[height={resolution}]+bestaudio/best',
             #"format": f"[height<={resolution}]/[height<=720]",
-            "format": f"[height={resolution}]",
+            "format": f"[height=480]",
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
             "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
