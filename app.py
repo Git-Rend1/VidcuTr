@@ -4,6 +4,7 @@ import tempfile
 import yt_dlp
 from flask import Flask, request, send_file, render_template_string
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import download_range_func
 
 app = Flask(__name__)
 
