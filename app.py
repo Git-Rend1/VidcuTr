@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tempfile
+import shutil
 import yt_dlp
 from flask import Flask, request, send_file, render_template_string
 from yt_dlp import YoutubeDL
@@ -81,11 +82,11 @@ INDEX_HTML = """
       <a href="{{ url_for('list_downloads') }}">View saved downloads</a>
     </p>
  
-    <form method="POST" action="/clear-downloads" style="margin-top:20px;">
+    <form method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
       <button type="submit" style="background:#c62828;color:#fff;">
         Clear Downloads Folder
       </button>
-    </form>    
+    </form>  
     
     <p class="note">
       Xhamster,Xvideo,Xnxx,Pornhub.
@@ -222,14 +223,17 @@ def download_file(filename):
 @app.route("/clear-downloads", methods=["POST"])
 def clear_downloads():
     try:
+        if not os.path.isdir(DOWNLOADS_DIR):
+            return "Downloads folder does not exist.", 404
+
+        # Delete all files and subfolders in downloads
         for name in os.listdir(DOWNLOADS_DIR):
             path = os.path.join(DOWNLOADS_DIR, name)
             if os.path.isfile(path) or os.path.islink(path):
                 os.unlink(path)
             elif os.path.isdir(path):
-                # If you ever create subfolders, remove them too
-                import shutil
                 shutil.rmtree(path)
+
         return "Downloads folder cleared.", 200
     except Exception as e:
         return f"Error clearing downloads: {e}", 500
