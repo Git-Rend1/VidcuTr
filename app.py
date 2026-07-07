@@ -84,7 +84,7 @@ def cut():
         ydl_opts = {
             #"format": f'bestvideo[height={resolution}]+bestaudio/best',
             #"format": f"[height<={resolution}]/[height<=720]",
-            "format": f"[height={resolution}]",
+            "format": f"[height=resolution]",
             "merge_output_format": 'mp4',
             "outtmpl": input_path,
             "download_ranges": yt_dlp.utils.download_range_func([], [[0.0, 30.0]]),
