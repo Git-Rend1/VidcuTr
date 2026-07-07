@@ -128,7 +128,7 @@ def cut():
         # Get the actual file path from info_dict
         filename = f"{info['title']}.{info['ext']}"
         #output_path = os.path.join(tmpdir, filename)
-        print(filename)
+        print("DL File Name: "+filename)
         #output_path = info.get("_filename")
         if not filename or not os.path.isfile(filename):
             return "Downloaded file not found.", 500
@@ -146,7 +146,7 @@ def cut():
             "-c", "copy",
             output_path,
         ]
-
+        print("Cuted File Path: "+output_path)
         try:
             subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
