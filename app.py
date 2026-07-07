@@ -78,7 +78,7 @@ INDEX_HTML = """
     <button type="submit">Cut & Download</button>
  
     <p class="note">
-      <a href="/downloads">View saved downloads</a>
+      <a href="{{ url_for('list_downloads') }}">View saved downloads</a>
     </p>
  
     <form method="POST" action="/clear-downloads" style="margin-top:20px;">
@@ -169,14 +169,55 @@ def cut():
 
         saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
         os.replace(orgFile_path, saved_original_path)
-
-        return send_file(
-            output_path,
-            as_attachment=True,
-            download_name=("cut"+download_name),
-            mimetype="video/mp4",
+        print("Org file Moved to Path: "+saved_original_path)
+        # return send_file(
+            # output_path,
+            # as_attachment=True,
+            # download_name=("cut"+download_name),
+            # mimetype="video/mp4",
         )
+@app.route("/downloads", methods=["GET"])
+def list_downloads():
+    files = []
+    if os.path.isdir(DOWNLOADS_DIR):
+        files = sorted(os.listdir(DOWNLOADS_DIR))
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Saved Downloads</title>
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 6px 0; }
+        a { text-decoration: none; color: #1976d2; }
+      </style>
+    </head>
+    <body>
+      <h1>Downloads folder</h1>
+      <ul>
+        {% for f in files %}
+          <li><a href="{{ url_for('download_file', filename=f) }}">{{ f }}</a></li>
+        {% endfor %}
+      </ul>
+      <p><a href="{{ url_for('index') }}">Back to cutter</a></p>
+    </body>
+    </html>
+    """
+    return render_template_string(html, files=files)
 
+
+@app.route("/download/<path:filename>", methods=["GET"])
+def download_file(filename):
+    path = os.path.join(DOWNLOADS_DIR, filename)
+    if not os.path.isfile(path):
+        return "File not found.", 404
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=filename
+    )
 @app.route("/clear-downloads", methods=["POST"])
 def clear_downloads():
     try:
