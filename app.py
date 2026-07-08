@@ -80,18 +80,45 @@ INDEX_HTML = """
  
     <p class="note">
       <a href="{{ url_for('list_downloads') }}">View saved downloads</a>
-    </p>
- 
-    <form method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
-      <button type="submit" style="background:#c62828;color:#fff;">
-        Clear Downloads Folder
-      </button>
-    </form>  
+    </p>   
     
     <p class="note">
       Xhamster,Xvideo,Xnxx,Pornhub.
     </p>
   </form>
+  <form method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
+    <button type="submit" style="background:#c62828;color:#fff;">
+      Clear Downloads Folder
+    </button>
+  </form>  
+  
+  <script>
+    const form = document.getElementById('cut-form');
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();  // prevent normal form submit
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch('/cut', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+          alert('Cut finished. Go to "View saved downloads" to download the file.\nCut file: ' + data.cut_file);
+        } else {
+          alert('Error: ' + (data.message || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Network error: ' + err);
+      }
+    });
+  </script>
+  
 </body>
 </html>
 """
@@ -171,7 +198,11 @@ def cut():
         saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
         os.replace(orgFile_path, saved_original_path)
         print("Org file Moved to Path: "+saved_original_path)
-        return "OK"
+        return jsonify({
+            "status": "ok",
+            "cut_file": "cut" + download_name,
+            "original_file": download_name
+        }), 200
         # return send_file(
             # output_path,
             # as_attachment=True,
@@ -209,7 +240,6 @@ def list_downloads():
     """
     return render_template_string(html, files=files)
 
-
 @app.route("/download/<path:filename>", methods=["GET"])
 def download_file(filename):
     path = os.path.join(DOWNLOADS_DIR, filename)
@@ -220,6 +250,7 @@ def download_file(filename):
         as_attachment=True,
         download_name=filename
     )
+    
 @app.route("/clear-downloads", methods=["POST"])
 def clear_downloads():
     try:
