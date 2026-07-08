@@ -65,11 +65,11 @@ INDEX_HTML = """
     
     <label>Video resolution (advanced)</label>
     <select name="resolution">
-      <option value=480 selected>Original resolution</option>
-      <option value=360>360p (640x360)</option>
-      <option value=480>480p (854x480)</option>
-      <option value=720>720p (1280x720)</option>
-      <option value=1080>1080p (1920x1080)</option>
+      <option value="480" selected>Original resolution</option>
+      <option value="360">360p (640x360)</option>
+      <option value="480">480p (854x480)</option>
+      <option value="720">720p (1280x720)</option>
+      <option value="1080">1080p (1920x1080)</option>
     </select>
     
     <p class="note">
@@ -86,6 +86,7 @@ INDEX_HTML = """
       Xhamster,Xvideo,Xnxx,Pornhub.
     </p>
   </form>
+
   <form method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
     <button type="submit" style="background:#c62828;color:#fff;">
       Clear Downloads Folder
@@ -93,30 +94,39 @@ INDEX_HTML = """
   </form>  
   
   <script>
-    const form = document.getElementById('cut-form');
+    (function() {
+      var form = document.getElementById('cut-form');
+      if (!form) {
+        console.error('cut-form not found');
+        return;
+      }
 
-    form.addEventListener('submit', async function (e) {
-      e.preventDefault();  // prevent normal form submit
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
 
-      const formData = new FormData(form);
+        var formData = new FormData(form);
 
-      try {
-        const res = await fetch('/cut', {
+        fetch('/cut', {
           method: 'POST',
           body: formData
+        })
+        .then(function(res) {
+          return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+          });
+        })
+        .then(function(result) {
+          if (result.ok && result.data.status === 'ok') {
+            alert('Cut finished. Go to "View saved downloads" to download the file.\\nCut file: ' + result.data.cut_file);
+          } else {
+            alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
+          }
+        })
+        .catch(function(err) {
+          alert('Network error: ' + err);
         });
-
-        const data = await res.json();
-
-        if (res.ok && data.status === 'ok') {
-          alert('Cut finished. Go to "View saved downloads" to download the file.\nCut file: ' + data.cut_file);
-        } else {
-          alert('Error: ' + (data.message || 'Unknown error'));
-        }
-      } catch (err) {
-        alert('Network error: ' + err);
-      }
-    });
+      });
+    })();
   </script>
   
 </body>
