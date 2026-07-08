@@ -113,7 +113,7 @@ INDEX_HTML = """
             })
             .then(function(result) {
               if (result.ok && result.data.status === 'ok') {
-                alert('Cut finished. Go to "View saved downloads" to download the file.\nCut file: ' + result.data.cut_file);
+                alert('Cut finished. Go to "View saved downloads" to download the file. Cut file: ' + result.data.cut_file);
               } else {
                 alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
               }
