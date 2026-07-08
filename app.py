@@ -43,7 +43,7 @@ INDEX_HTML = """
 </head>
 <body>
   <h1>Online Video Cutter</h1>
-  <form method="POST" action="/cut">
+  <form id="cut-form" method="POST" action="/cut">
     <label>Video URL</label>
     <input type="text" name="url" placeholder="Paste video link" required>
 
@@ -76,7 +76,7 @@ INDEX_HTML = """
       -----------------------------------------------------------
     </p>   
     
-    <button type="submit">Cut & Download</button>
+    <button type="submit">Cut</button>
  
     <p class="note">
       <a href="{{ url_for('list_downloads') }}">View saved downloads</a>
