@@ -87,47 +87,70 @@ INDEX_HTML = """
     </p>
   </form>
 
-  <form method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
+  <form id="clear-form" method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
     <button type="submit" style="background:#c62828;color:#fff;">
       Clear Downloads Folder
     </button>
   </form>  
   
-  <script>
-    (function() {
-      var form = document.getElementById('cut-form');
-      if (!form) {
-        console.error('cut-form not found');
-        return;
-      }
+    <script>
+      (function() {
+        var cutForm = document.getElementById('cut-form');
+        if (cutForm) {
+          cutForm.addEventListener('submit', function (e) {
+            e.preventDefault();
 
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
+            var formData = new FormData(cutForm);
 
-        var formData = new FormData(form);
-
-        fetch('/cut', {
-          method: 'POST',
-          body: formData
-        })
-        .then(function(res) {
-          return res.json().then(function(data) {
-            return { ok: res.ok, data: data };
+            fetch('/cut', {
+              method: 'POST',
+              body: formData
+            })
+            .then(function(res) {
+              return res.json().then(function(data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function(result) {
+              if (result.ok && result.data.status === 'ok') {
+                alert('Cut finished. Go to "View saved downloads" to download the file.\nCut file: ' + result.data.cut_file);
+              } else {
+                alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
+              }
+            })
+            .catch(function(err) {
+              alert('Network error: ' + err);
+            });
           });
-        })
-        .then(function(result) {
-          if (result.ok && result.data.status === 'ok') {
-            alert('Cut finished. Go to "View saved downloads" to download the file.\\nCut file: ' + result.data.cut_file);
-          } else {
-            alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
-          }
-        })
-        .catch(function(err) {
-          alert('Network error: ' + err);
-        });
-      });
-    })();
-  </script>
+        }
+
+        var clearForm = document.getElementById('clear-form');
+        if (clearForm) {
+          clearForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            fetch('/clear-downloads', {
+              method: 'POST'
+            })
+            .then(function(res) {
+              return res.json().then(function(data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function(result) {
+              if (result.ok && result.data.status === 'ok') {
+                alert(result.data.message || 'Downloads folder cleared.');
+              } else {
+                alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
+              }
+            })
+            .catch(function(err) {
+              alert('Network error: ' + err);
+            });
+          });
+        }
+      })();
+    </script>
   
 </body>
 </html>
@@ -275,9 +298,9 @@ def clear_downloads():
             elif os.path.isdir(path):
                 shutil.rmtree(path)
 
-        return "Downloads folder cleared.", 200
+        return jsonify({"status": "ok", "message": "Downloads folder cleared."}), 200
     except Exception as e:
-        return f"Error clearing downloads: {e}", 500
+        return jsonify({"status": "error", "message": f"Error clearing downloads: {e}"}), 500
         
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
