@@ -242,16 +242,26 @@ def cut():
             # download_name=("cut"+download_name),
             # mimetype="video/mp4",
         #)
+import os
+
 @app.route("/downloads", methods=["GET"])
 def list_downloads():
     files = []
     if os.path.isdir(DOWNLOADS_DIR):
-        files = os.listdir(DOWNLOADS_DIR)
-        files = sorted(
-            files,
-            key=lambda name: os.path.getmtime(os.path.join(DOWNLOADS_DIR, name)),
-            reverse=True  # newest first
-        )
+        names = os.listdir(DOWNLOADS_DIR)
+        # Build list of dicts: name + mtime + size
+        files = []
+        for name in names:
+            path = os.path.join(DOWNLOADS_DIR, name)
+            if os.path.isfile(path):
+                files.append({
+                    "name": name,
+                    "mtime": os.path.getmtime(path),
+                    "size": os.path.getsize(path),  # bytes
+                })
+        # Sort by modification time (newest first)
+        files.sort(key=lambda f: f["mtime"], reverse=True)  # [web:191][web:192][web:193][web:196]
+
     html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -263,13 +273,17 @@ def list_downloads():
         ul { list-style: none; padding: 0; }
         li { margin: 6px 0; }
         a { text-decoration: none; color: #1976d2; }
+        .size { color: #555; font-size: 0.9em; margin-left: 8px; }
       </style>
     </head>
     <body>
       <h1>Downloads folder</h1>
       <ul>
         {% for f in files %}
-          <li><a href="{{ url_for('download_file', filename=f) }}">{{ f }}</a></li>
+          <li>
+            <a href="{{ url_for('download_file', filename=f.name) }}">{{ f.name }}</a>
+            <span class="size">({{ (f.size / 1024)|round(1) }} KB)</span>
+          </li>
         {% endfor %}
       </ul>
       <p><a href="{{ url_for('index') }}">Back to cutter</a></p>
