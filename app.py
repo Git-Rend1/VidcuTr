@@ -249,7 +249,6 @@ def list_downloads():
     files = []
     if os.path.isdir(DOWNLOADS_DIR):
         names = os.listdir(DOWNLOADS_DIR)
-        # Build list of dicts: name + mtime + size
         files = []
         for name in names:
             path = os.path.join(DOWNLOADS_DIR, name)
@@ -282,7 +281,7 @@ def list_downloads():
         {% for f in files %}
           <li>
             <a href="{{ url_for('download_file', filename=f.name) }}">{{ f.name }}</a>
-            <span class="size">({{ (f.size / 1024)|round(1) }} KB)</span>
+            <span class="size">({{ (f.size / (1024 * 1024))|round(2) }} MB)</span>
           </li>
         {% endfor %}
       </ul>
