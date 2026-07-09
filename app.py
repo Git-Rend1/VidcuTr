@@ -246,7 +246,12 @@ def cut():
 def list_downloads():
     files = []
     if os.path.isdir(DOWNLOADS_DIR):
-        files = sorted(os.listdir(DOWNLOADS_DIR))
+        files = os.listdir(DOWNLOADS_DIR)
+        files = sorted(
+            files,
+            key=lambda name: os.path.getmtime(os.path.join(DOWNLOADS_DIR, name)),
+            reverse=True  # newest first
+        )
     html = """
     <!DOCTYPE html>
     <html lang="en">
