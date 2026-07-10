@@ -32,8 +32,7 @@ def get_downloads_info():
     files = []
     total_size = 0
     if os.path.isdir(DOWNLOADS_DIR):
-        names = os.listdir(DOWNLOADS_DIR)
-        for name in names:
+        for name in os.listdir(DOWNLOADS_DIR):
             path = os.path.join(DOWNLOADS_DIR, name)
             if os.path.isfile(path):
                 size = os.path.getsize(path)
@@ -44,9 +43,9 @@ def get_downloads_info():
                     "size": size,
                 })
                 total_size += size
-        # Sort by modification time, newest first
+        # Newest first
         files.sort(key=lambda f: f["mtime"], reverse=True)
-    return files, total_size  # [web:238][web:230][web:237]
+    return files, total_size  # [web:238][web:250][web:230]
 
 
 INDEX_HTML = """
@@ -150,6 +149,11 @@ INDEX_HTML = """
     <label>Video URL</label>
     <input type="text" name="url" placeholder="Paste video link" required>
 
+    <label>Filename prefix (optional)</label>
+    <input type="text"
+           name="prefix"
+           placeholder="e.g. MyClip_">
+
     <label>Start time (HH:MM:SS)</label>
     <input type="text"
            name="start"
@@ -177,7 +181,7 @@ INDEX_HTML = """
 
     <label>Cutting mode</label>
     <label class="switch">
-      <input type="checkbox" id="cut-toggle" name="cut_enabled">
+      <input type="checkbox" id="cut-toggle" name="cut_enabled" checked>
       <span class="slider round"></span>
     </label>
     <span id="cut-toggle-label">Cutting enabled</span>
@@ -249,12 +253,12 @@ INDEX_HTML = """
             if (result.ok && result.data.status === 'ok') {
               var msg;
               if (result.data.cut_file) {
-                msg = 'Cut finished. Go to the downloads section below to download the file. Cut file: ' + result.data.cut_file;
+                msg = 'Cut finished. See downloads section below. Cut file: ' + result.data.cut_file;
               } else {
                 msg = 'Download finished. Full video saved. File: ' + result.data.original_file;
               }
               alert(msg);
-              // Optional: reload page to update downloads list & total size
+              // Reload page to update downloads list and total size
               window.location.reload();
             } else {
               alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
@@ -282,7 +286,6 @@ INDEX_HTML = """
           .then(function(result) {
             if (result.ok && result.data.status === 'ok') {
               alert(result.data.message || 'Downloads folder cleared.');
-              // Reload to clear list and reset total size
               window.location.reload();
             } else {
               alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
@@ -327,6 +330,7 @@ def index():
 @app.route("/cut", methods=["POST"])
 def cut():
     url = request.form.get("url", "").strip()
+    prefix = request.form.get("prefix", "").strip()
     start_str = request.form.get("start", "").strip()
     end_str = request.form.get("end", "").strip()
     resolution = request.form.get("resolution", "0").strip()
@@ -367,11 +371,16 @@ def cut():
         except Exception as e:
             return jsonify({"status": "error", "message": f"Download error: {e}"}), 500
 
+        # Name from yt-dlp
         filename = f"{info['title']}.{info['ext']}"
         orgFile_path = os.path.join(tmpdir, filename)
         print("DL File Path: " + orgFile_path)
 
+        # Apply optional prefix
         download_name = os.path.basename(filename)
+        if prefix:
+            download_name = prefix + download_name  # prepend prefix [web:241][web:244][web:243]
+
         saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
         os.replace(orgFile_path, saved_original_path)
         print("Org file Moved to Path: " + saved_original_path)

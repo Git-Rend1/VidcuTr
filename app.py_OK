@@ -27,6 +27,28 @@ def parse_hhmmss(time_str: str) -> float:
         raise ValueError(f"Invalid time value '{time_str}': {e}")
 
 
+def get_downloads_info():
+    """Return list of files (name, mtime, size) and total size in bytes."""
+    files = []
+    total_size = 0
+    if os.path.isdir(DOWNLOADS_DIR):
+        names = os.listdir(DOWNLOADS_DIR)
+        for name in names:
+            path = os.path.join(DOWNLOADS_DIR, name)
+            if os.path.isfile(path):
+                size = os.path.getsize(path)
+                mtime = os.path.getmtime(path)
+                files.append({
+                    "name": name,
+                    "mtime": mtime,
+                    "size": size,
+                })
+                total_size += size
+        # Sort by modification time, newest first
+        files.sort(key=lambda f: f["mtime"], reverse=True)
+    return files, total_size  # [web:238][web:230][web:237]
+
+
 INDEX_HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -34,11 +56,12 @@ INDEX_HTML = """
   <meta charset="UTF-8">
   <title>My Video Cutter</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; }
     label { display: block; margin-top: 10px; }
     input[type="text"], input[type="number"] { width: 100%; padding: 8px; }
     button { margin-top: 20px; padding: 10px 16px; }
     .note { font-size: 0.9em; color: #555; margin-top: 10px; }
+    .section-title { margin-top: 40px; font-size: 1.2em; }
 
     /* Rounded switch */
     .switch {
@@ -96,6 +119,28 @@ INDEX_HTML = """
     .slider.round:before {
       border-radius: 50%;
     }
+
+    /* Downloads table */
+    table.downloads {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    table.downloads th, table.downloads td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #ddd;
+      font-size: 0.95em;
+    }
+
+    table.downloads th {
+      text-align: left;
+      background-color: #f5f5f5;
+    }
+
+    .size-cell {
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -132,7 +177,7 @@ INDEX_HTML = """
 
     <label>Cutting mode</label>
     <label class="switch">
-      <input type="checkbox" id="cut-toggle" name="cut_enabled" checked>
+      <input type="checkbox" id="cut-toggle" name="cut_enabled">
       <span class="slider round"></span>
     </label>
     <span id="cut-toggle-label">Cutting enabled</span>
@@ -144,10 +189,6 @@ INDEX_HTML = """
     <button type="submit">Cut</button>
 
     <p class="note">
-      <a href="{{ url_for('list_downloads') }}">View saved downloads</a>
-    </p>
-
-    <p class="note">
       Xhamster,Xvideo,Xnxx,Pornhub.
     </p>
   </form>
@@ -157,6 +198,34 @@ INDEX_HTML = """
       Clear Downloads Folder
     </button>
   </form>
+
+  <h2 class="section-title">Downloads (stored on server)</h2>
+  <p class="note">
+    Total storage used: {{ (total_size / (1024 * 1024))|round(2) }} MB
+  </p>
+
+  {% if files %}
+    <table class="downloads">
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Size (MB)</th>
+          <th>Download</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in files %}
+          <tr>
+            <td>{{ f.name }}</td>
+            <td class="size-cell">{{ (f.size / (1024 * 1024))|round(2) }}</td>
+            <td><a href="{{ url_for('download_file', filename=f.name) }}">Download</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="note">No files in downloads folder yet.</p>
+  {% endif %}
 
   <script>
     (function() {
@@ -180,11 +249,13 @@ INDEX_HTML = """
             if (result.ok && result.data.status === 'ok') {
               var msg;
               if (result.data.cut_file) {
-                msg = 'Cut finished. Go to "View saved downloads" to download the file. Cut file: ' + result.data.cut_file;
+                msg = 'Cut finished. Go to the downloads section below to download the file. Cut file: ' + result.data.cut_file;
               } else {
                 msg = 'Download finished. Full video saved. File: ' + result.data.original_file;
               }
               alert(msg);
+              // Optional: reload page to update downloads list & total size
+              window.location.reload();
             } else {
               alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
             }
@@ -211,6 +282,8 @@ INDEX_HTML = """
           .then(function(result) {
             if (result.ok && result.data.status === 'ok') {
               alert(result.data.message || 'Downloads folder cleared.');
+              // Reload to clear list and reset total size
+              window.location.reload();
             } else {
               alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
             }
@@ -247,7 +320,8 @@ INDEX_HTML = """
 
 @app.route("/", methods=["GET"])
 def index():
-    return render_template_string(INDEX_HTML)
+    files, total_size = get_downloads_info()
+    return render_template_string(INDEX_HTML, files=files, total_size=total_size)
 
 
 @app.route("/cut", methods=["POST"])
@@ -258,7 +332,6 @@ def cut():
     resolution = request.form.get("resolution", "0").strip()
     cut_enabled_raw = request.form.get("cut_enabled")
 
-    # Checkbox: present when checked, missing when not
     cutting_enabled = cut_enabled_raw is not None
 
     if not url:
@@ -275,7 +348,6 @@ def cut():
         except ValueError as e:
             return jsonify({"status": "error", "message": str(e)}), 400
     else:
-        # If cutting disabled, we don't need start/end; use full video
         start_sec = 0
         end_sec = None
 
@@ -327,59 +399,11 @@ def cut():
                 "original_file": download_name,
             }), 200
         else:
-            # Cutting disabled: only full video saved
             return jsonify({
                 "status": "ok",
                 "cut_file": None,
                 "original_file": download_name,
             }), 200
-
-
-@app.route("/downloads", methods=["GET"])
-def list_downloads():
-    files = []
-    if os.path.isdir(DOWNLOADS_DIR):
-        names = os.listdir(DOWNLOADS_DIR)
-        for name in names:
-            path = os.path.join(DOWNLOADS_DIR, name)
-            if os.path.isfile(path):
-                files.append({
-                    "name": name,
-                    "mtime": os.path.getmtime(path),
-                    "size": os.path.getsize(path),  # bytes
-                })
-        # Sort by modification time, newest first
-        files.sort(key=lambda f: f["mtime"], reverse=True)
-
-    html = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>Saved Downloads</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
-        ul { list-style: none; padding: 0; }
-        li { margin: 6px 0; }
-        a { text-decoration: none; color: #1976d2; }
-        .size { color: #555; font-size: 0.9em; margin-left: 8px; }
-      </style>
-    </head>
-    <body>
-      <h1>Downloads folder</h1>
-      <ul>
-        {% for f in files %}
-          <li>
-            <a href="{{ url_for('download_file', filename=f.name) }}">{{ f.name }}</a>
-            <span class="size">({{ (f.size / (1024 * 1024))|round(2) }} MB)</span>
-          </li>
-        {% endfor %}
-      </ul>
-      <p><a href="{{ url_for('index') }}">Back to cutter</a></p>
-    </body>
-    </html>
-    """
-    return render_template_string(html, files=files)
 
 
 @app.route("/download/<path:filename>", methods=["GET"])
