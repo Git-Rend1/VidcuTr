@@ -177,7 +177,7 @@ INDEX_HTML = """
 
     <label>Cutting mode</label>
     <label class="switch">
-      <input type="checkbox" id="cut-toggle" name="cut_enabled" checked>
+      <input type="checkbox" id="cut-toggle" name="cut_enabled">
       <span class="slider round"></span>
     </label>
     <span id="cut-toggle-label">Cutting enabled</span>
