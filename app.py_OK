@@ -1,10 +1,31 @@
 import os
 import subprocess
 import tempfile
-from flask import Flask, request, send_file, render_template_string
+import shutil
+import yt_dlp
+from flask import Flask, request, send_file, render_template_string, jsonify
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import download_range_func
 
 app = Flask(__name__)
+
+DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+
+
+# ------------ Helpers ------------
+
+def parse_hhmmss(time_str: str) -> float:
+    """Convert 'HH:MM:SS' (or 'H:MM:SS') to seconds."""
+    try:
+        parts = time_str.strip().split(":")
+        if len(parts) != 3:
+            raise ValueError("Time must be in HH:MM:SS format")
+        h, m, s = parts
+        return int(h) * 3600 + int(m) * 60 + int(s)
+    except Exception as e:
+        raise ValueError(f"Invalid time value '{time_str}': {e}")
+
 
 INDEX_HTML = """
 <!DOCTYPE html>
@@ -22,21 +43,115 @@ INDEX_HTML = """
 </head>
 <body>
   <h1>Online Video Cutter</h1>
-  <form method="POST" action="/cut">
+  <form id="cut-form" method="POST" action="/cut">
     <label>Video URL</label>
     <input type="text" name="url" placeholder="Paste video link" required>
 
-    <label>Start time (seconds)</label>
-    <input type="number" name="start" min="0" value="0" required>
+    <label>Start time (HH:MM:SS)</label>
+    <input type="text"
+           name="start"
+           placeholder="00:00:00"
+           value="00:00:00"
+           pattern="^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$"
+           required>
 
-    <label>End time (seconds)</label>
-    <input type="number" name="end" min="1" value="30" required>
-
-    <button type="submit">Cut & Download</button>
+    <label>End time (HH:MM:SS)</label>
+    <input type="text"
+           name="end"
+           placeholder="00:01:30"
+           value="00:00:01"
+           pattern="^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$"
+           required>
+    
+    <label>Video resolution (advanced)</label>
+    <select name="resolution">
+      <option value="480" selected>Original resolution</option>
+      <option value="360">360p (640x360)</option>
+      <option value="480">480p (854x480)</option>
+      <option value="720">720p (1280x720)</option>
+      <option value="1080">1080p (1920x1080)</option>
+    </select>
+    
     <p class="note">
-      Only use URLs you have permission to download and edit.
+      -----------------------------------------------------------
+    </p>   
+    
+    <button type="submit">Cut</button>
+ 
+    <p class="note">
+      <a href="{{ url_for('list_downloads') }}">View saved downloads</a>
+    </p>   
+    
+    <p class="note">
+      Xhamster,Xvideo,Xnxx,Pornhub.
     </p>
   </form>
+
+  <form id="clear-form" method="POST" action="{{ url_for('clear_downloads') }}" style="margin-top:20px;">
+    <button type="submit" style="background:#c62828;color:#fff;">
+      Clear Downloads Folder
+    </button>
+  </form>  
+  
+    <script>
+      (function() {
+        var cutForm = document.getElementById('cut-form');
+        if (cutForm) {
+          cutForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            var formData = new FormData(cutForm);
+
+            fetch('/cut', {
+              method: 'POST',
+              body: formData
+            })
+            .then(function(res) {
+              return res.json().then(function(data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function(result) {
+              if (result.ok && result.data.status === 'ok') {
+                alert('Cut finished. Go to "View saved downloads" to download the file. Cut file: ' + result.data.cut_file);
+              } else {
+                alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
+              }
+            })
+            .catch(function(err) {
+              alert('Network error: ' + err);
+            });
+          });
+        }
+
+        var clearForm = document.getElementById('clear-form');
+        if (clearForm) {
+          clearForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            fetch('/clear-downloads', {
+              method: 'POST'
+            })
+            .then(function(res) {
+              return res.json().then(function(data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function(result) {
+              if (result.ok && result.data.status === 'ok') {
+                alert(result.data.message || 'Downloads folder cleared.');
+              } else {
+                alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
+              }
+            })
+            .catch(function(err) {
+              alert('Network error: ' + err);
+            });
+          });
+        }
+      })();
+    </script>
+  
 </body>
 </html>
 """
@@ -48,58 +163,163 @@ def index():
 @app.route("/cut", methods=["POST"])
 def cut():
     url = request.form.get("url", "").strip()
-    start = request.form.get("start", "0").strip()
-    end = request.form.get("end", "0").strip()
+    start_str = request.form.get("start", "").strip()
+    end_str = request.form.get("end", "").strip()
+    resolution = request.form.get("resolution", "0").strip()
 
     if not url:
         return "Missing URL", 400
-
+    if not start_str or not end_str:
+        return "Missing start or end time.", 400
+        
     try:
-        start_sec = float(start)
-        end_sec = float(end)
+        start_sec = parse_hhmmss(start_str)
+        end_sec = parse_hhmmss(end_str)
         if end_sec <= start_sec:
             return "End time must be greater than start time.", 400
-    except ValueError:
-        return "Invalid time values.", 400
-
+    except ValueError as e:
+        return str(e), 400
+            
+    resolution_int = int(resolution)
+        
     with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = os.path.join(tmpdir, "input.mp4")
+        input_path = os.path.join(tmpdir, "%(title)s.%(ext)s")
         ydl_opts = {
+            #"format": f'bestvideo[height={resolution}]+bestaudio/best',
+            #"format": f"[height<={resolution}]/[height<=720]",
+            "format": f"[height={resolution}]",
+            "merge_output_format": 'mp4',
             "outtmpl": input_path,
-            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4/best"
+            #"download_ranges": yt_dlp.utils.download_range_func([], [[start_sec, end_sec]]),
+            #"force_keyframes_at_cuts": True,
+            #'listformats': True,
         }
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+                info = ydl.extract_info(url, download=True)
         except Exception as e:
             return f"Download error: {e}", 500
 
-        output_path = os.path.join(tmpdir, "clip.mp4")
-        duration = end_sec - start_sec
+        # Get the actual file path from info_dict
+        filename = f"{info['title']}.{info['ext']}"
+        orgFile_path = os.path.join(tmpdir, filename)
+        print("DL File Path: "+orgFile_path)
+        #output_path = info.get("_filename")
+        #if not orgFile_path or not os.path.isfile(filename):
+            #return "Downloaded file not found.", 500
 
+        # Use the final file name for download_name (nice for the user)
+        download_name = os.path.basename(filename)
+        output_path = os.path.join(DOWNLOADS_DIR,("cut"+download_name))
+        
         ffmpeg_cmd = [
             "ffmpeg",
             "-y",
             "-ss", str(start_sec),
-            "-i", input_path,
-            "-t", str(duration),
+            "-i", orgFile_path,
+            "-to", str(end_sec),
             "-c", "copy",
             output_path,
         ]
-
+        print("Cuted File Path: "+output_path)
         try:
             subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
             return f"FFmpeg error: {e}", 500
 
-        return send_file(
-            output_path,
-            as_attachment=True,
-            download_name="clip.mp4",
-            mimetype="video/mp4",
-        )
+        saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
+        os.replace(orgFile_path, saved_original_path)
+        print("Org file Moved to Path: "+saved_original_path)
+        return jsonify({
+            "status": "ok",
+            "cut_file": "cut" + download_name,
+            "original_file": download_name
+        }), 200
+        # return send_file(
+            # output_path,
+            # as_attachment=True,
+            # download_name=("cut"+download_name),
+            # mimetype="video/mp4",
+        #)
+import os
 
+@app.route("/downloads", methods=["GET"])
+def list_downloads():
+    files = []
+    if os.path.isdir(DOWNLOADS_DIR):
+        names = os.listdir(DOWNLOADS_DIR)
+        files = []
+        for name in names:
+            path = os.path.join(DOWNLOADS_DIR, name)
+            if os.path.isfile(path):
+                files.append({
+                    "name": name,
+                    "mtime": os.path.getmtime(path),
+                    "size": os.path.getsize(path),  # bytes
+                })
+        # Sort by modification time (newest first)
+        files.sort(key=lambda f: f["mtime"], reverse=True)  # [web:191][web:192][web:193][web:196]
+
+    html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Saved Downloads</title>
+      <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 6px 0; }
+        a { text-decoration: none; color: #1976d2; }
+        .size { color: #555; font-size: 0.9em; margin-left: 8px; }
+      </style>
+    </head>
+    <body>
+      <h1>Downloads folder</h1>
+      <ul>
+        {% for f in files %}
+          <li>
+            <a href="{{ url_for('download_file', filename=f.name) }}">{{ f.name }}</a>
+            <span class="size">({{ (f.size / (1024 * 1024))|round(2) }} MB)</span>
+          </li>
+        {% endfor %}
+      </ul>
+      <p><a href="{{ url_for('index') }}">Back to cutter</a></p>
+    </body>
+    </html>
+    """
+    return render_template_string(html, files=files)
+
+@app.route("/download/<path:filename>", methods=["GET"])
+def download_file(filename):
+    path = os.path.join(DOWNLOADS_DIR, filename)
+    if not os.path.isfile(path):
+        return "File not found.", 404
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=filename
+    )
+    
+@app.route("/clear-downloads", methods=["POST"])
+def clear_downloads():
+    try:
+        if not os.path.isdir(DOWNLOADS_DIR):
+            return "Downloads folder does not exist.", 404
+
+        # Delete all files and subfolders in downloads
+        for name in os.listdir(DOWNLOADS_DIR):
+            path = os.path.join(DOWNLOADS_DIR, name)
+            if os.path.isfile(path) or os.path.islink(path):
+                os.unlink(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+
+        return jsonify({"status": "ok", "message": "Downloads folder cleared."}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Error clearing downloads: {e}"}), 500
+        
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
