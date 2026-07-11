@@ -53,7 +53,7 @@ INDEX_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>My Video Cutter</title>
+  <title>YT-DLP DNLR</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
     label { display: block; margin-top: 10px; }
