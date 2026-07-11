@@ -45,7 +45,7 @@ def get_downloads_info():
                 total_size += size
         # Newest first
         files.sort(key=lambda f: f["mtime"], reverse=True)
-    return files, total_size  # [web:238][web:250][web:230]
+    return files, total_size
 
 
 INDEX_HTML = """
@@ -55,9 +55,9 @@ INDEX_HTML = """
   <meta charset="UTF-8">
   <title>My Video Cutter</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; }
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
     label { display: block; margin-top: 10px; }
-    input[type="text"], input[type="number"] { width: 100%; padding: 8px; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 8px; box-sizing: border-box; }
     button { margin-top: 20px; padding: 10px 16px; }
     .note { font-size: 0.9em; color: #555; margin-top: 10px; }
     .section-title { margin-top: 40px; font-size: 1.2em; }
@@ -140,6 +140,24 @@ INDEX_HTML = """
     .size-cell {
       color: #555;
     }
+
+    /* Link Aggregator Box Styling */
+    .links-box-container {
+      margin-top: 40px;
+      margin-bottom: 60px;
+    }
+    .links-textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 0.9em;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fafafa;
+      resize: vertical;
+    }
   </style>
 </head>
 <body>
@@ -204,9 +222,9 @@ INDEX_HTML = """
   </form>
 
   <h2 class="section-title">Downloads (stored on server)</h2>
-  <p class="note">
-    Total storage used: {{ (total_size / (1024 * 1024))|round(2) }} MB
-  </p>
+  
+  <!-- UPDATED: Added Tab Space & Total Files Count here -->
+  <p class="note" style="white-space: pre-wrap;">Total storage used: {{ (total_size / (1024 * 1024))|round(2) }} MB&#9;Total files: {{ files|length }}</p>
 
   {% if files %}
     <table class="downloads">
@@ -227,6 +245,15 @@ INDEX_HTML = """
         {% endfor %}
       </tbody>
     </table>
+
+    <!-- Download Links Aggregator Box -->
+    <div class="links-box-container">
+      <h3 class="section-title">All Download Links (One per line)</h3>
+      <textarea class="links-textarea" readonly onclick="this.select();">{% for f in files %}{{ url_for('download_file', filename=f.name, _external=True) }}
+{% endfor %}</textarea>
+      <p class="note">💡 Click inside the box to automatically highlight all links for quick copying.</p>
+    </div>
+
   {% else %}
     <p class="note">No files in downloads folder yet.</p>
   {% endif %}
@@ -258,7 +285,6 @@ INDEX_HTML = """
                 msg = 'Download finished. Full video saved. File: ' + result.data.original_file;
               }
               alert(msg);
-              // Reload page to update downloads list and total size
               window.location.reload();
             } else {
               alert('Error: ' + (result.data && result.data.message ? result.data.message : 'Unknown error'));
@@ -297,7 +323,6 @@ INDEX_HTML = """
         });
       }
 
-      // Cutting enable/disable switch label
       var cutToggle = document.getElementById('cut-toggle');
       var cutToggleLabel = document.getElementById('cut-toggle-label');
       if (cutToggle && cutToggleLabel) {
@@ -371,15 +396,13 @@ def cut():
         except Exception as e:
             return jsonify({"status": "error", "message": f"Download error: {e}"}), 500
 
-        # Name from yt-dlp
         filename = f"{info['title']}.{info['ext']}"
         orgFile_path = os.path.join(tmpdir, filename)
         print("DL File Path: " + orgFile_path)
 
-        # Apply optional prefix
         download_name = os.path.basename(filename)
         if prefix:
-            download_name = prefix + download_name  # prepend prefix [web:241][web:244][web:243]
+            download_name = prefix + download_name
 
         saved_original_path = os.path.join(DOWNLOADS_DIR, download_name)
         os.replace(orgFile_path, saved_original_path)
