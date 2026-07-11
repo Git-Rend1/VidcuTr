@@ -393,14 +393,26 @@ def cut():
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                
+                # FIX: Extract the actual, real file path that yt-dlp wrote to disk
+                if 'requested_downloads' in info and info['requested_downloads']:
+                    orgFile_path = info['requested_downloads'][0]['filepath']
+                else:
+                    orgFile_path = info.get('_filename')
+                    
         except Exception as e:
             return jsonify({"status": "error", "message": f"Download error: {e}"}), 500
 
-        filename = f"{info['title']}.{info['ext']}"
-        orgFile_path = os.path.join(tmpdir, filename)
-        print("DL File Path: " + orgFile_path)
+        # Safety check: Ensure we found a real path and it exists
+        if not orgFile_path or not os.path.exists(orgFile_path):
+            return jsonify({"status": "error", "message": "Downloaded file could not be located on disk."}), 500
 
-        download_name = os.path.basename(filename)
+        # Cleanly isolate the real filename from the full path
+        filename = os.path.basename(orgFile_path)
+        print("Real DL File Path found: " + orgFile_path)
+
+        # Apply optional prefix
+        download_name = filename
         if prefix:
             download_name = prefix + download_name
 
